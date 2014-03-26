@@ -4,17 +4,18 @@
 # by crutchy
 # 25-march-2014
 
-$nick="crutchy_test";
-$chan="#test";
+$nick     ="crutchy_test";
+$chan     ="#test";
 $wiki_host="wiki.soylentnews.org";
-$wiki_uri="/w/index.php?title=User:Crutchy&amp;action=submit";
+$wiki_uri ="/w/index.php?title=User:Crutchy&amp;action=submit";
+$joined   = 0;
 
 set_time_limit(0);
 ini_set("display_errors","on");
-$joined=0;
 $fp=fsockopen("irc.sylnt.us",6667);
 fputs($fp,"NICK $nick\r\n");
 fputs($fp,"USER $nick * $nick :$nick\r\n");
+
 main();
 
 function main()
@@ -27,52 +28,42 @@ function main()
   if ($data!==False)
   {
     $parts=explode(" ",$data);
-    if (count($parts)>1)
-    {
-      if ($parts[0]=="PING")
-      {
+    if (count($parts)>1) {
+      if ($parts[0]=="PING") {
         fputs($fp,"PONG ".$parts[1]."\r\n");
-      }
-      else
-      {
+      } else {
         echo $data;
       }
-      if ((trim($parts[1])=="PRIVMSG") and (count($parts)>3))
-      {
-        $pieces1=explode("!",$parts[0]);
-        $pieces2=explode("PRIVMSG $chan :",$data);
-        if ((count($pieces1)>1) and (count($pieces2)==2))
-        {
-          $msg_nick=substr($pieces1[0],1);
-          $msg=trim($pieces2[1]);
-          if (strlen($msg)>0)
-          {
+      if ((trim($parts[1])=="PRIVMSG") and (count($parts)>3)) {
+        $pieces1  =explode("!",$parts[0]);
+        $pieces2  =explode("PRIVMSG $chan :",$data);
+        if ((count($pieces1)>1) and (count($pieces2)==2)) {
+          $msg_nick =substr($pieces1[0],1);
+          $msg      =trim($pieces2[1]);
+          if (strlen($msg)>0) {
             $i=strpos($msg," ");
-            if (($i!==False) and ($msg[0]=="!"))
-            {
-              $cmd=strtoupper(substr($msg,1,$i-1));
+            if (($i!==False) and ($msg[0]=="!")) {
+              $cmd    =strtoupper(substr($msg,1,$i-1));
               $content=substr($msg,$i+1);
-              switch ($cmd)
-              {
+              switch ($cmd) {
                 case "WIKI":
-                  if (strtoupper(trim($content))=="QUIT")
-                  {
+                  if (strtoupper(trim($content))=="QUIT") {
                     fputs($fp,":$nick QUIT\r\n");
                     fclose($fp);
                     echo "QUITTING SCRIPT\r\n";
                     return;
                   }
+                  
                   fputs($fp,":$nick PRIVMSG $chan :$msg_nick wants to send \"$content\" to the Soylent wiki.\r\n");
                   wiki($msg_nick,$content);
-                  break;
-              }
+                break;
+              } // Close switch
             }
           }
         }
       }
     }
-    if (($joined==0) and (strpos($data,"End of /MOTD command")!==False))
-    {
+    if (($joined==0) and (strpos($data,"End of /MOTD command")!==False)) {
       $joined=1;
       fputs($fp,"JOIN $chan\r\n");
     }
@@ -80,38 +71,38 @@ function main()
   main();
 }
 
-function wiki($msg_nick,$content)
+function wiki($msg_nick, $content)
 {
   global $wiki_host;
   global $wiki_uri;
   $wfp=fsockopen($wiki_host,80);
-  if ($wfp===False)
-  {
+  
+  if ($wfp===FALSE){
     echo "Error connecting to \"$wiki_host\".\r\n";
     return;
   }
-  $data="wpSection=".rawurlencode("13");
-  $data=$data."&wpTextbox1=".rawurlencode("==IRC BOT TESTING==\r\n$msg_nick: $content");
-  $data=$data."&wpSave=".rawurlencode("Save page");
-  $request="POST $wiki_uri HTTP/1.0\r\n";
-  $request=$request."Host: $wiki_host\r\n";
-  $request=$request."Content-Type: application/x-www-form-urlencoded\r\n";
-  $request=$request."Content-Length: ".strlen($data)."\r\n";
-  $request=$request."Connection: Close\r\n\r\n";
-  $request=$request.$data;
+  
+  $data.="wpSection=".rawurlencode("13");
+  $data.="&wpTextbox1=".rawurlencode("==IRC BOT TESTING==\r\n$msg_nick: $content");
+  $data.="&wpSave=".rawurlencode("Save page");
+  $request.="POST $wiki_uri HTTP/1.0\r\n";
+  $request.="Host: $wiki_host\r\n";
+  $request.="Content-Type: application/x-www-form-urlencoded\r\n";
+  $request.="Content-Length: ".strlen($data)."\r\n";
+  $request.="Connection: Close\r\n\r\n";
+  $request.=$data;
   fwrite($wfp,$request);
-  $response="";
-  while (!feof($wfp))
-  {
+  $response='';
+  
+  while (!feof($wfp)) {
     $response=$response.fgets($wfp,1024);
   }
+  
   fclose($wfp);
-  if (strpos($response,$content)!==False)
-  {
+  
+  if (strpos($response,$content)!==False) {
     echo "Response contains submitted content :-)\r\n";
-  }
-  else
-  {
+  } else {
     echo "Submitted content not found in response :-(\r\n";
   }
 }
